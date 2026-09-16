@@ -23,7 +23,7 @@ public:
     virtual void undo();
 
 private:
-    void treat(bool isStart = true);
+    void treat(bool isStart = true, bool isInsert = true);
     void insertByBlock();
 
 private:

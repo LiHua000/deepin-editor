@@ -34,7 +34,7 @@ void InsertBlockByTextCommand::redo()
 {
     treat(true);
     insertByBlock();
-    treat(false);
+    treat(false, true);
 }
 
 void InsertBlockByTextCommand::undo()
@@ -51,10 +51,10 @@ void InsertBlockByTextCommand::undo()
         cursor.insertText(m_selected);
     }
 
-    treat(false);
+    treat(false, false);
 }
 
-void InsertBlockByTextCommand::treat(bool isStart)
+void InsertBlockByTextCommand::treat(bool isStart, bool isInsert)
 {
     if(m_wrapper!=nullptr){
 
@@ -90,8 +90,13 @@ void InsertBlockByTextCommand::treat(bool isStart)
         int insertPos = m_delPos - m_text.size();
         if (insertPos < 0)
             insertPos = 0;
-        m_edit->updateMark(insertPos, 0, m_text.size());
-        m_edit->checkBookmarkLineMove(insertPos, 0, m_text.size());
+        if (isInsert) {
+            m_edit->updateMark(insertPos, 0, m_text.size());
+            m_edit->checkBookmarkLineMove(insertPos, 0, m_text.size());
+        } else {
+            m_edit->updateMark(insertPos, m_text.size(), 0);
+            m_edit->checkBookmarkLineMove(insertPos, m_text.size(), 0);
+        }
     } else {
         // Disconnect cursorPositionChanged
         QObject::disconnect(m_edit, &QPlainTextEdit::cursorPositionChanged, m_edit, &TextEdit::cursorPositionChanged);

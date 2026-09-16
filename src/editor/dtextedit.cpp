@@ -70,6 +70,7 @@ TextEdit::TextEdit(QWidget *parent)
     setUndoRedoEnabled(false);
     //撤销重做栈
     m_pUndoStack = new QUndoStack();
+    // 限制撤销栈为 100 步，避免大文本反复粘贴时撤销栈无限增长导致内存膨胀
     m_pUndoStack->setUndoLimit(100);
 
     m_nLines = 0;
