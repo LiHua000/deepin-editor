@@ -68,10 +68,42 @@ void InsertBlockByTextCommand::treat(bool isStart)
         }
     }
 
-    if(!isStart)
+    if(!isStart) {
+        // Reconnect cursorPositionChanged
         QObject::connect(m_edit, &QPlainTextEdit::cursorPositionChanged, m_edit, &TextEdit::cursorPositionChanged);
-    else
+
+        // Reconnect textChanged
+        QObject::connect(m_edit, &QPlainTextEdit::textChanged, m_edit, &TextEdit::updateLeftAreaWidget);
+        QObject::connect(m_edit, &QPlainTextEdit::textChanged, m_edit, [edit = m_edit, wrapper = m_wrapper]() {
+            wrapper->UpdateBottomBarWordCnt(edit->characterCount());
+        });
+
+        // Reconnect contentsChange (onTextContentChanged left connected — no-op during block insert)
+        QObject::connect(m_edit->document(), &QTextDocument::contentsChange, m_edit, &TextEdit::updateMark);
+        QObject::connect(m_edit->document(), &QTextDocument::contentsChange, m_edit, &TextEdit::checkBookmarkLineMove);
+
+        // Unified state refresh after reconnection
+        m_edit->updateLeftAreaWidget();
+        m_edit->cursorPositionChanged();
+        if (m_wrapper)
+            m_wrapper->UpdateBottomBarWordCnt(m_edit->characterCount());
+        int insertPos = m_delPos - m_text.size();
+        if (insertPos < 0)
+            insertPos = 0;
+        m_edit->updateMark(insertPos, 0, m_text.size());
+        m_edit->checkBookmarkLineMove(insertPos, 0, m_text.size());
+    } else {
+        // Disconnect cursorPositionChanged
         QObject::disconnect(m_edit, &QPlainTextEdit::cursorPositionChanged, m_edit, &TextEdit::cursorPositionChanged);
+
+        // Disconnect textChanged (all connections to m_edit)
+        QObject::disconnect(m_edit, &QPlainTextEdit::textChanged, m_edit, nullptr);
+
+        // Disconnect contentsChange — only the expensive public slots
+        // (onTextContentChanged is a private slot and a no-op during block insert, left connected)
+        QObject::disconnect(m_edit->document(), &QTextDocument::contentsChange, m_edit, &TextEdit::updateMark);
+        QObject::disconnect(m_edit->document(), &QTextDocument::contentsChange, m_edit, &TextEdit::checkBookmarkLineMove);
+    }
 }
 
 void InsertBlockByTextCommand::insertByBlock()
