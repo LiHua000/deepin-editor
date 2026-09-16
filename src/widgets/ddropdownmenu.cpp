@@ -24,20 +24,19 @@ const int s_DDropdownMenuHeightCompact = 20;
 
 DDropdownMenu::DDropdownMenu(QWidget *parent)
     : QFrame(parent)
-    , m_pToolButton(new DToolButton(this))
+    , m_textLabel(new DLabel(this))
+    , m_arrowLabel(new DLabel(this))
     , m_menu(new DMenu)
 {
     // 更新单独添加的高亮格式文件
     m_Repository.addCustomSearchPath(KF5_HIGHLIGHT_PATH);
 
-    //设置toobutton属性
-    m_pToolButton->setFocusPolicy(Qt::StrongFocus);
-    m_pToolButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    m_pToolButton->setArrowType(Qt::NoArrow);
-    m_pToolButton->setFixedHeight(28);
-    m_pToolButton->installEventFilter(this);
-    //this->installEventFilter(this);
-    //设置图标
+    //设置文字标签属性
+    m_textLabel->setFocusPolicy(Qt::StrongFocus);
+    m_textLabel->installEventFilter(this);
+    m_textLabel->setText(m_text);
+
+    //设置箭头图标
     QString theme =  (DGuiApplicationHelper::instance()->applicationPalette().color(QPalette::Background).lightness() < 128) ? "dark" : "light";
     QString arrowSvgPath = QString(":/images/dropdown_arrow_%1.svg").arg(theme);
     // 根据当前显示缩放转换图片
@@ -49,16 +48,21 @@ DDropdownMenu::DDropdownMenu(QWidget *parent)
     QPainter painter(&pixmap);
     svg_render.render(&painter,QRect(0,0,8,5));
     m_arrowPixmap = pixmap;
-    m_pToolButton->setIcon(createIcon());
+    m_arrowLabel->setPixmap(m_arrowPixmap);
+    m_arrowLabel->setFixedSize(8, 5);
+    m_arrowLabel->installEventFilter(this);
 
     //设置字体
     int fontsize = DFontSizeManager::instance()->fontPixelSize(DFontSizeManager::T9);
     m_font.setPixelSize(fontsize);
+    m_textLabel->setFont(m_font);
 
      //添加布局
     QHBoxLayout *layout = new QHBoxLayout();
-    layout->addWidget(m_pToolButton);
-    layout->setContentsMargins(0,0,0,0);
+    layout->addWidget(m_textLabel);
+    layout->addWidget(m_arrowLabel);
+    layout->setContentsMargins(10, 0, 2, 0);
+    layout->setSpacing(2);
     this->setLayout(layout);
 
     connect(this, &DDropdownMenu::requestContextMenu, this, &DDropdownMenu::slotRequestMenu);
@@ -68,12 +72,12 @@ DDropdownMenu::DDropdownMenu(QWidget *parent)
     connect(qApp,&DApplication::fontChanged,this,&DDropdownMenu::OnFontChangedSlot);
 
 #ifdef DTKWIDGET_CLASS_DSizeMode
-    m_pToolButton->setFixedHeight(DGuiApplicationHelper::isCompactMode() ? s_DDropdownMenuHeightCompact : s_DDropdownMenuHeight);
+    setFixedHeight(DGuiApplicationHelper::isCompactMode() ? s_DDropdownMenuHeightCompact : s_DDropdownMenuHeight);
     connect(DGuiApplicationHelper::instance(), &DGuiApplicationHelper::sizeModeChanged, this, [this](){
-        m_pToolButton->setFixedHeight(DGuiApplicationHelper::isCompactMode() ? s_DDropdownMenuHeightCompact : s_DDropdownMenuHeight);
+        setFixedHeight(DGuiApplicationHelper::isCompactMode() ? s_DDropdownMenuHeightCompact : s_DDropdownMenuHeight);
     });
 #else
-    m_pToolButton->setFixedHeight(s_DDropdownMenuHeight);
+    setFixedHeight(s_DDropdownMenuHeight);
 #endif
 }
 
@@ -85,7 +89,7 @@ DDropdownMenu::~DDropdownMenu()
 
 void DDropdownMenu::setFontEx(const QFont& font)
 {
-    m_pToolButton->setFont(font);
+    m_textLabel->setFont(font);
     m_font = font;
 }
 
@@ -159,7 +163,7 @@ void DDropdownMenu::slotRequestMenu(bool request)
 {
     if (request) {
         //如果鼠标点击清除ｆｏｃｕｓ
-        m_pToolButton->clearFocus();
+        m_textLabel->clearFocus();
     }
     QPoint center = this->mapToGlobal(this->rect().center());
     int menuHeight = m_menu->sizeHint().height();
@@ -169,17 +173,16 @@ void DDropdownMenu::slotRequestMenu(bool request)
     m_menu->move(center);
     m_menu->exec();
     //清除ｆｏｃｕｓ
-    m_pToolButton->clearFocus();
+    m_textLabel->clearFocus();
     QEvent event(QEvent::HoverLeave);
-    QApplication::sendEvent(m_pToolButton, &event);
+    QApplication::sendEvent(m_textLabel, &event);
     emit sigSetTextEditFocus();
 }
 
 void DDropdownMenu::setText(const QString &text)
 {
     m_text = text;
-    //重新绘制icon　设置宽度
-    m_pToolButton->setIcon(createIcon());
+    m_textLabel->setText(m_text);
 }
 
 void DDropdownMenu::setMenu(DMenu *menu)
@@ -225,15 +228,15 @@ void DDropdownMenu::setTheme(const QString &theme)
     svg_render.render(&painter,QRect(0,0,8,5));
 
     m_arrowPixmap = pixmap;
-    m_pToolButton->setIcon(createIcon());
+    m_arrowLabel->setPixmap(m_arrowPixmap);
 }
 
 void DDropdownMenu::setChildrenFocus(bool ok)
 {
-    if(ok)  m_pToolButton->setFocusPolicy(Qt::StrongFocus);
+    if(ok)  m_textLabel->setFocusPolicy(Qt::StrongFocus);
     else  {
-        m_pToolButton->clearFocus();
-        m_pToolButton->setFocusPolicy(Qt::NoFocus);
+        m_textLabel->clearFocus();
+        m_textLabel->setFocusPolicy(Qt::NoFocus);
     }
 }
 
@@ -242,9 +245,9 @@ void DDropdownMenu::setRequestMenu(bool request)
     isRequest = request;
 }
 
-DToolButton *DDropdownMenu::getButton()
+QWidget *DDropdownMenu::getButton()
 {
-    return m_pToolButton;
+    return m_textLabel;
 }
 
 QString DDropdownMenu::getCurrentText() const
@@ -358,61 +361,23 @@ DDropdownMenu *DDropdownMenu::createHighLightMenu()
     return m_pHighLightMenu;
 }
 
-QIcon DDropdownMenu::createIcon()
+void DDropdownMenu::updateAppearance()
 {
-
-    DPalette dpalette  = DApplicationHelper::instance()->palette(m_pToolButton);
-    QColor textColor;
-
-    QPixmap arrowPixmap;
+    DPalette dpalette = DApplicationHelper::instance()->palette(m_textLabel);
+    QPalette pal = m_textLabel->palette();
 
     if(m_bPressed){
-        textColor = dpalette.color(DPalette::Highlight);
+        QColor textColor = dpalette.color(DPalette::Highlight);
+        pal.setColor(QPalette::WindowText, textColor);
+        m_textLabel->setPalette(pal);
         QString color = textColor.name(QColor::HexRgb);
-        arrowPixmap = setSvgColor(color);
-    }else {
-        textColor = dpalette.color(DPalette::WindowText);
-        arrowPixmap = m_arrowPixmap;
+        m_arrowLabel->setPixmap(setSvgColor(color));
+    } else {
+        QColor textColor = dpalette.color(DPalette::WindowText);
+        pal.setColor(QPalette::WindowText, textColor);
+        m_textLabel->setPalette(pal);
+        m_arrowLabel->setPixmap(m_arrowPixmap);
     }
-
-    // 根据字体大小设置icon大小，按计算的字体高度，而非从字体文件中读取的高度(部分字体中英文高度不同)
-    QFontMetrics metrics(m_font);
-    int fontWidth = metrics.width(m_text) + 20;
-    int fontHeight = metrics.size(Qt::TextSingleLine, m_text).height();
-    int iconW = 8;
-    int iconH = 5;
-
-    int totalWidth = fontWidth + iconW + 10;
-#ifdef DTKWIDGET_CLASS_DSizeMode
-    int totalHeigth = DGuiApplicationHelper::isCompactMode() ? s_DDropdownMenuHeightCompact : s_DDropdownMenuHeight;
-#else
-    int totalHeigth = s_DDropdownMenuHeight;
-#endif
-    m_pToolButton->setFixedSize(totalWidth,totalHeigth);
-    m_pToolButton->setIconSize(QSize(totalWidth,totalHeigth));
-
-    qreal rate = this->devicePixelRatioF();
-    QPixmap icon(QSize(totalWidth,totalHeigth)*rate);
-    icon.setDevicePixelRatio(rate);
-    icon.fill(Qt::transparent);
-
-    QPainter painter(&icon);
-    painter.setRenderHint(QPainter::Antialiasing, true);
-    painter.setRenderHints(QPainter::SmoothPixmapTransform);
-
-    painter.save();
-    painter.setFont(m_font);
-    painter.setPen(textColor);
-    painter.drawText(QRectF(10,(totalHeigth-fontHeight)/2,fontWidth,fontHeight),m_text);
-    painter.restore();
-
-    //arrowPixmap=arrowPixmap.scaled(iconW,iconH,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
-
-    //qDebug()<<"==================="<<arrowPixmap.rect().height();
-    painter.drawPixmap(QRectF(fontWidth,(totalHeigth-iconH)/2,iconW,iconH),arrowPixmap,arrowPixmap.rect());
-
-    painter.end();
-    return icon;
 }
 
 void DDropdownMenu::OnFontChangedSlot(const QFont &font)
@@ -420,13 +385,13 @@ void DDropdownMenu::OnFontChangedSlot(const QFont &font)
     m_font = font;
     int fontsize =DFontSizeManager::instance()->fontPixelSize(DFontSizeManager::T8);
     m_font.setPixelSize(fontsize);
-    m_pToolButton->setIcon(createIcon());
+    m_textLabel->setFont(m_font);
 }
 
 
 bool DDropdownMenu::eventFilter(QObject *object, QEvent *event)
 {
-    if(object == m_pToolButton){
+    if(object == m_textLabel || object == m_arrowLabel){
         if(event->type() == QEvent::KeyPress){
             QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
             //QString key = Utils::getKeyshortcut(keyEvent);
@@ -444,10 +409,8 @@ bool DDropdownMenu::eventFilter(QObject *object, QEvent *event)
             QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
             if(mouseEvent->button() == Qt::LeftButton){
                 m_bPressed = true;
-                //if (isRequest) {
-                    //重新绘制icon 点击改变前景色
-                    m_pToolButton->setIcon(createIcon());
-                //}
+                //重新绘制 点击改变前景色
+                updateAppearance();
                 return true;
             }
 
@@ -460,11 +423,11 @@ bool DDropdownMenu::eventFilter(QObject *object, QEvent *event)
             QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
             if(mouseEvent->button() == Qt::LeftButton){
                 m_bPressed = false;
-                m_pToolButton->setIcon(createIcon());
+                updateAppearance();
                 if (isEnabled()) {
                     Q_EMIT requestContextMenu(true);
                 }
-                m_pToolButton->clearFocus();
+                m_textLabel->clearFocus();
             }
             return true;
         }

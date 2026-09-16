@@ -9,7 +9,7 @@
 #include <DMenu>
 #include <QLabel>
 #include <QEvent>
-#include <DToolButton>
+#include <DLabel>
 #include <QPalette>
 #include <QtXml/QDomDocument>
 #include <QtXml/QDomElement>
@@ -36,7 +36,7 @@ public:
 
     void setChildrenFocus(bool ok);
     void setRequestMenu(bool request);
-    DToolButton* getButton();
+    QWidget* getButton();
     QString getCurrentText() const;
 
 public slots:
@@ -58,9 +58,8 @@ signals:
     void sigSetTextEditFocus();
 
 private:
-    //创建文字ICON
-    QIcon createIcon();
     void setText(const QString &text);
+    void updateAppearance();
 private slots:
     //字体大小跟随系统变化
     void OnFontChangedSlot(const QFont &font);
@@ -71,7 +70,8 @@ private:
     QPixmap setSvgColor(QString color);
     void SetSVGBackColor(QDomElement &elem, QString strattr, QString strattrval);
 private:
-    DToolButton *m_pToolButton = nullptr;
+    DLabel *m_textLabel = nullptr;
+    DLabel *m_arrowLabel = nullptr;
     DMenu *m_menu = nullptr;
     QActionGroup *m_actionGroup = nullptr;
     QPixmap m_arrowPixmap;
